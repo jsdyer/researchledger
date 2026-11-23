@@ -17,6 +17,7 @@
   "access": "browser",
   "data_info": {
     "mode": "mixed",
-    "detail": "Crossref bibliographic metadata from live searches and weekly snapshots of three Canadian topic queries; selected records, not complete research coverage."
+    "detail": "Crossref bibliographic metadata from live searches and weekly snapshots of three Canadian topic queries; selected records, not complete research coverage.",
+    "cadence": "Weekly"
   }
 }
