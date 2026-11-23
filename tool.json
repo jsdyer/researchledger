@@ -1,16 +1,22 @@
 {
-  "id": "coolcode-tool-template",
-  "title": "CoolCode Tool Starter",
-  "description": "A browser-only example that trims lines and removes exact duplicates.",
-  "category": "security",
-  "tags": ["text", "lines", "duplicates"],
-  "icon": "scan-search",
-  "url": "/coolcode-tool-template/",
-  "source": "https://github.com/jsdyer/coolcode-tool-template",
+  "id": "researchledger",
+  "title": "Research Ledger",
+  "description": "Search research metadata, inspect funding and updates, and follow dated Crossref records.",
+  "category": "explorers",
+  "tags": [
+    "research",
+    "Crossref",
+    "citations",
+    "funding",
+    "evidence"
+  ],
+  "icon": "book-open",
+  "url": "/researchledger/",
+  "source": "https://github.com/jsdyer/researchledger",
   "hosting": "project",
   "access": "browser",
   "data_info": {
-    "mode": "local",
-    "detail": "The browser reads the text you paste and compares its lines."
+    "mode": "mixed",
+    "detail": "Crossref bibliographic metadata from live searches and weekly snapshots of three Canadian topic queries; selected records, not complete research coverage."
   }
 }

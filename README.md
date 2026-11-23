@@ -1,116 +1,52 @@
-# CoolCode browser tool template
+# Research Ledger
 
-A starting point for independent tools at `coolcode.ca/<repo>/`: a working local-text
-example, responsive UI, Python standard-library build, Node tests, PR checks and Pages
-publication. No npm install is needed.
-
-## Using the example
+A public browser application at **https://coolcode.ca/researchledger/** for finding the research behind a claim. It searches Crossref and retains dated, Canadian-topic metadata samples. No API key or visitor account is required.
 
 <!-- coolcode:guide -->
-The first occurrence of each trimmed line keeps its place. Compare the output with the original text before copying the result.
+Start with the saved wildfire, water or open-government collection, then inspect a paper's authors, funding and recorded update links. Search Crossref by topic, title, author or DOI for other work; export a CSV or save a timestamped receipt. Missing funding or correction metadata means unknown, and citation counts are incomplete—not a measure of quality.
 <!-- /coolcode:guide -->
 
-For a real tool, replace this paragraph with one or two plain-text sentences
-about an example, a limit or how to interpret the results. Keep the source,
-coverage, refresh behaviour and a worked example in this README as appropriate.
-When updating a tool, revise any details its behaviour has changed and keep the
-homepage's shorter data-source sentence in `tool.json` accurate.
-The hub imports the marked note into the catalogue README.
+## What works
 
-## One-time template setup
+- Three real saved searches: `Canada wildfire smoke health`, `Canada freshwater climate change`, and `Canada open government data` (25 ranked journal-article results each, deduplicated by DOI).
+- Live Crossref searches by topic, title, author and exact DOI. Publication-date filters apply to searches, not DOI lookups. Up to 40 results are fetched per explicit submission.
+- Local filter over title, authors, funders, journal, publisher and DOI; date/title/cited-by sorting; publication-year bars for the current view.
+- Evidence detail: authors, publisher, publication date, journal, cited-by count, funding organizations and awards, directional update/relation links, deposit/index/capture dates.
+- Citation copy, CSV export and JSON evidence receipts that retain the capture time, source query and original selected metadata.
+- Weekly retained snapshots with citation-count and bibliographic-field comparison against the immediately preceding capture. The first real capture is explicitly a baseline, never invented historical evidence.
 
-Enable **Settings → General → Template repository** here. This repository does not
-need Pages enabled: its workflow builds/tests but intentionally skips deployment.
-New copies also skip deployment until `scripts/init.py` sets the tool ID to match
-their repository name. This lets you create the repo before configuring Pages.
+## Sources and interpretation
 
-## Start a new tool
+[Crossref's REST API](https://www.crossref.org/documentation/retrieve-metadata/rest-api/) provides bibliographic metadata deposited by publishers and other trusted sources. [Crossref's API guidance](https://www.crossref.org/documentation/retrieve-metadata/rest-api/tips-for-using-the-crossref-rest-api/) explains query filters, caching and date semantics. The implementation was checked against the live API on 2026-11-23; the API returned `Access-Control-Allow-Origin: *` for browser reads.
 
-1. Select **Use this template → Create a new repository**, choose owner `jsdyer`,
-   a unique lowercase name such as `my-tool`, and public visibility.
-2. Clone the new repository. Use Python 3.12+ and Node 24+.
-3. Set the identity, using a slug that matches the repository name:
+The fixed queries use the `type:journal-article` filter; live searches also find reports, books and other registered content. The fixed queries are discovery samples, **not all Canadian research**. They can include tangential matches or records from elsewhere. Their ranking and membership can change. The publication timeline counts only displayed results, not total research production. “New to sample” does not mean newly published. An earlier publication date is not evidence this tool archived the record on that date.
 
-```sh
-python3 scripts/init.py my-tool --title "My Tool" --description "Describe what this tool does."
-```
+Crossref cited-by counts are partial and may rise or fall when metadata changes. Funding and corrections are recorded only where metadata supplies them. `update-to` is directional and often appears on a correction notice pointing at an affected paper; an empty field does not mean a work is uncorrected, unretracted or unfunded. Always follow the DOI to the publisher and check current status. Deposit/index dates describe registry changes, not necessarily changes to the article.
 
-Review the category, tags and icon in `tool.json`. `access: "browser"` tells the main
-catalogue that the tool works immediately without installation. `--owner` supports a different
-GitHub owner, but only projects owned by `jsdyer` inherit the CoolCode domain.
+No abstracts or full text are mirrored. Publisher content and images are not fetched. A DOI link may lead to content requiring access. Citations are simple bibliographic strings, not guaranteed APA/MLA formatting.
 
-4. Replace the example in `web/` and its tests. Update the privacy explanation,
-   source attribution and README to describe the real tool.
-5. Test and preview:
+## Collection and retention
+
+`python3 scripts/collect.py` fetches the three fixed searches sequentially with an identifying User-Agent and `mailto=jeffdyer@gmail.com`. It validates every record, waits between requests, and retries 429/503 responses with backoff. Partial failures leave the previous data untouched.
+
+The Pages workflow refreshes at **05:43 UTC on Mondays** or when manually dispatched with **Refresh saved research sample** enabled. GitHub schedules are best effort. Tests and build/browser checks must succeed before changed data is committed and deployed. The app retains the latest **16 actual captures** in `web/data/ledger.json`; older committed data remains in Git history. New captures do not manufacture a pre-launch history. The build itself is offline and works from the last committed collection.
+
+### Privacy and API behavior
+
+Saved sample browsing requests only static site files. Live search sends the submitted query/DOI and date filters directly to `api.crossref.org`, together with the public project contact address. The provider sees normal connection metadata. No secret key is embedded. Repeated identical queries use a 15-minute cache **in tab memory**, limited to 20 entries. Requests are explicit, serialized and spaced; rate-limit responses set a cooldown, with no polling. Queries, results and clipboard text are not written to persistent browser storage or published. Exported files are saved only at the visitor's request.
+
+The standard CoolCode shared visit counter is included by the site template. Research text is rendered as text, not executable HTML. CSV cells are quoted and formula prefixes escaped.
+
+## Development
+
+Python 3.12+ and Node 24+. No npm installation needed.
 
 ```sh
 node --test tests/*.test.mjs
 python3 -m unittest discover -s tests -v
 python3 scripts/build.py
-python3 -m http.server 8000 --directory dist
 ```
 
-Open `http://localhost:8000/`. The example trims lines, skips blanks and removes exact
-duplicates, preserving first-seen order and capitalization. It processes the text in tab memory. Update that explanation if your app behaves differently.
+CI also installs `tests/browser-requirements.txt` and runs `tests/browser_smoke.py` against the built project subpath. It checks saved-data browsing, filtering, exports, a mocked live search, safe rendering and mobile overflow. Builds output `dist/` (not committed). Keep all asset paths relative for GitHub Pages project hosting.
 
-CI also tests the browser flow and mobile layout at a project subpath. Replace the
-sample assertions in `tests/browser_smoke.py` when implementing your own UI. To run
-that check locally (optional for ordinary preview):
-
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python3 -m pip install -r tests/browser-requirements.txt
-python3 -m playwright install --with-deps chromium
-python3 tests/browser_smoke.py
-```
-
-Playwright is a test-only dependency; the app and its static build do not use it.
-
-## Publish and register
-
-When the actual tool is ready, in the **new tool repository** set **Settings → Pages → Build and deployment →
-Source → GitHub Actions**. Push to `main`, or manually run **Browser tool · Check and
-publish** after enabling Pages. If the initial deployment ran before Pages was enabled,
-enable it and rerun. PRs only check/build and provide a downloadable preview artifact.
-
-Keep `{{VISIT_COUNTER}}` in the page head and `{{ISSUE_LINK}}` in the footer when replacing the starter UI. The build enables these for initialized CoolCode repositories. The shared counter records aggregate opens on coolcode.ca by public tool ID. Toolbox inputs and URL parameters are excluded. The issue link opens a reporting form with the tool already selected.
-
-Keep app-owned asset paths and module imports relative. Check `https://coolcode.ca/my-tool/`.
-Do not add a CNAME or set `coolcode.ca` as this project's custom domain; the account
-site supplies it. Only successful `main` builds deploy.
-
-After verifying the app, copy the reviewed object from `tool.json` into `data/tools.json`
-in [the main site](https://github.com/jsdyer/jsdyer.github.io). Each tool still builds
-independently. Update the hub record when listing metadata changes; the hub is the
-authority for discovery. Ordinary app updates touch only this repository.
-
-The main site separates **Use in your browser** from **Install yourself**. An app
-that asks for a file is still a browser tool. Standalone Linux packages should start
-in their own repositories with their own build/release workflow, rather than copying
-this browser-only scaffold. Their hub record uses `access: "install"`, links to an
-installation guide, and includes `requirements`.
-
-## Files
-
-| Path | Purpose |
-| --- | --- |
-| `tool.json` | Page metadata and a ready-to-copy catalogue record |
-| `web/` | HTML, responsive CSS, DOM interactions and separate model logic |
-| `scripts/build.py` | Escape metadata and build `web/` into `dist/` |
-| `scripts/init.py` | Set a new project's identity |
-| `tests/` | Application and builder tests |
-| `.github/workflows/pages.yml` | Check PRs and publish successful main builds |
-| `AGENTS.md` | Instructions for future coding work |
-
-Namespace optional storage as `coolcode:<tool-id>:<key>`; CoolCode paths share a
-browser origin. Don't save pasted text/uploads by default. Document external APIs
-and send only the information needed for the selected action. Never embed secrets.
-
-Scheduled refresh is opt-in. Validate source data before deploying, display its date,
-and preserve the last good deployment on failure. Public-repository schedules can
-stop after 60 days without repository activity.
-
-Templates don't propagate future edits automatically. Adopt fixes explicitly and
-consider a versioned reusable workflow once several tools confirm the shared process.
-Choose and add the intended software license before distributing a new project.
+`tool.json` is the CoolCode catalogue record. No CNAME is used; the parent catalogue owns `coolcode.ca`.

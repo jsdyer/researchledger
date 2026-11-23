@@ -1,21 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanLines } from '../web/model.mjs';
-test('trims, removes blanks and preserves first-seen order', () => {
-  assert.deepEqual(cleanLines('  Halifax\nLangley\nHalifax\n\nVancouver  '), {
-    text: 'Halifax\nLangley\nVancouver', count: 3, removed: 1,
-  });
-});
-test('supports Windows and old Mac line endings', () => {
-  assert.equal(cleanLines('a\r\nb\ra').text, 'a\nb');
-});
-test('empty text and whitespace produce an empty result', () => {
-  assert.deepEqual(cleanLines(' \n\t'), { text: '', count: 0, removed: 0 });
-});
-test('preserves case and Unicode', () => {
-  assert.equal(cleanLines('Québec\nquébec\n東京\nQuébec').text, 'Québec\nquébec\n東京');
-});
-test('treats markup as ordinary text', () => {
-  assert.equal(cleanLines('<script>alert(1)</script>\n<script>alert(1)</script>').text, '<script>alert(1)</script>');
-});
-test('rejects non-text input', () => { assert.throws(() => cleanLines(null), TypeError); });
+import {normalize,doi,dateParts,filterRecords,searchURL,citation,csv,compareRecord,histogram} from '../web/model.mjs';
+const raw={DOI:'10.1234/Example',title:['Research <i>record</i>'],author:[{given:'A',family:'Researcher'}],publisher:'Publisher',published:{'date-parts':[[2020,2]]},'is-referenced-by-count':4,funder:[{name:'Funding Council',award:['123']}],'update-to':[{DOI:'10.1234/previous',type:'correction',updated:{'date-parts':[[2021,1,3]]}}]};
+test('normalizes identifiers, partial dates, funding and directional update metadata',()=>{const r=normalize(raw,['water']);assert.equal(r.id,'10.1234/example');assert.equal(r.title,'Research record');assert.equal(r.published,'2020-02');assert.deepEqual(r.funders[0].awards,['123']);assert.equal(r.updates[0].kind,'correction');assert.equal(r.updates[0].id,'10.1234/previous');assert.equal(r.citations,4);assert.equal(doi('https://doi.org/10.1234/TEST'),'10.1234/test');assert.equal(doi('javascript:alert(1)'),'');assert.equal(dateParts({}),'');});
+test('missing metadata is preserved as unknown, distinct from zero citations',()=>{const r=normalize({DOI:'10.1234/x'});assert.equal(r.citations,null);assert.deepEqual(r.updates,[]);assert.equal(r.published,'');assert.equal(normalize({...raw,'is-referenced-by-count':0}).citations,0);});
+test('live queries encode untrusted terms and dates and keep fixed provider host',()=>{const u=new URL(searchURL({query:'government & privacy',mode:'topic',from:'2020-01-01',until:'2025-01-01'}));assert.equal(u.hostname,'api.crossref.org');assert.equal(u.searchParams.get('query'),'government & privacy');assert.equal(u.searchParams.get('mailto'),'jeffdyer@gmail.com');assert.equal(u.searchParams.get('filter'),'from-pub-date:2020-01-01,until-pub-date:2025-01-01');assert.throws(()=>searchURL({query:'x',from:'2025',until:'2020'}),/start date/);assert.throws(()=>searchURL({query:'bad',mode:'doi'}),/Enter a DOI/);assert.equal(new URL(searchURL({query:'https://doi.org/10.1234/test',mode:'doi'})).pathname,'/works/10.1234%2Ftest');});
+test('filters search authors and funders; year histogram counts sample only',()=>{const r=normalize(raw,['water']);assert.equal(filterRecords([r],{query:'funding council',topic:'water'}).length,1);assert.equal(filterRecords([r],{topic:'open'}).length,0);assert.equal(filterRecords([r],{from:'2021'}).length,0);assert.deepEqual(histogram([r,r]),[['2020',2]]);});
+test('comparison distinguishes absent history, sample membership, and downward count revision',()=>{const r=normalize(raw);assert.equal(compareRecord(r,null).status,'baseline');assert.equal(compareRecord(r,[]).status,'new-to-sample');const changed=normalize({...raw,title:['Changed'],'is-referenced-by-count':2});const diff=compareRecord(changed,[r]);assert.equal(diff.citationChange,-2);assert.deepEqual(diff.changedFields,['title']);});
+test('CSV escapes quotes, line breaks and spreadsheet formulas; citation provides DOI',()=>{const r=normalize({...raw,title:['=HYPERLINK("x")\nrecord']});const result=csv([r]);assert.ok(result.includes('"\'=HYPERLINK(""x"")\nrecord"'));assert.ok(citation(r).includes('https://doi.org/10.1234/example'));});

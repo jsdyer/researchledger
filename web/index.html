@@ -1,34 +1,33 @@
 <!doctype html>
-<html lang="en-CA">
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="{{DESCRIPTION}}">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="{{DESCRIPTION}}"><meta name="theme-color" content="#193b47">
   <title>{{TITLE}} · CoolCode</title>
-  <link rel="stylesheet" href="./style.css">
-  <script type="module" src="./app.mjs"></script>
-  {{VISIT_COUNTER}}
+  <link rel="stylesheet" href="./style.css"><script type="module" src="./app.mjs"></script>{{VISIT_COUNTER}}
 </head>
-<body data-tool-id="{{TOOL_ID}}">
-  <a class="skip" href="#main">Skip to content</a>
-  <header><a href="https://coolcode.ca/">← CoolCode.ca</a><a href="{{SOURCE_URL}}">Source &amp; instructions ↗</a></header>
-  <main id="main">
-    <p class="eyebrow">Browser tool starter</p>
-    <h1>{{TITLE}}</h1>
-    <p class="intro">{{DESCRIPTION}}</p>
-    <section aria-labelledby="example-title">
-      <h2 id="example-title">Clean a list</h2>
-      <p>Trim spaces, skip blank lines and remove exact duplicates. Capitalization stays distinct.</p>
-      <div class="panels">
-        <div><label for="input">Your lines</label><textarea id="input" rows="10" maxlength="100000" spellcheck="false" placeholder="Paste one item per line"></textarea></div>
-        <div><label for="output">Cleaned lines</label><textarea id="output" rows="10" readonly spellcheck="false"></textarea></div>
-      </div>
-      <div class="actions"><button id="sample" type="button">Load example</button><button id="clear" type="button">Clear</button><button id="copy" type="button" hidden>Copy result</button></div>
-      <p id="status" role="status" aria-live="polite">Paste a list to begin.</p>
-      <noscript><p>This tool needs JavaScript to process your text. The source is available above.</p></noscript>
+<body>
+<a class="skip" href="#workspace">Skip to research records</a>
+<header class="topbar"><a href="https://coolcode.ca/" class="brand">CoolCode<span>.ca</span></a><span class="series">THE EVIDENCE SERIES <b> / 06</b></span><a href="#method">Sources & method ↗</a></header>
+<main>
+  <section class="hero"><div><p class="eyebrow">RESEARCH LEDGER <span>•</span> POWERED BY CROSSREF</p><h1>Follow the<br><em>published record.</em></h1><p class="intro">Find the paper behind a claim. Trace its authors, funding and recorded updates—then take the evidence with you.</p></div><aside class="hero-note"><span class="folio">R / L</span><p>Bibliographic evidence.<br>Every record has a source.</p><a href="#workspace">Open the ledger <span>↓</span></a></aside></section>
+  <section class="summary" aria-label="Collection summary"><div><span id="record-count">—</span><p>records in this view</p></div><div><span id="funding-count">—</span><p>with funding metadata</p></div><div><span id="capture-count">—</span><p>dated captures retained</p></div><div class="summary-date"><small>SAVED SAMPLE UPDATED</small><strong id="latest-date">Loading collection…</strong><p>Canadian topics · refreshed weekly</p></div></section>
+  <div class="workspace" id="workspace">
+    <aside class="sidebar">
+      <div class="mode-switch" aria-label="Data mode"><button id="saved-mode" class="active" aria-pressed="true">Saved sample</button><button id="live-mode" aria-pressed="false">Search Crossref</button></div>
+      <div id="saved-controls"><p class="section-label">EXPLORE A COLLECTION</p><div id="topic-buttons" class="topics"><button data-topic="" class="selected">All three topics <span>↗</span></button><button data-topic="wildfire">Wildfire & health <span>01</span></button><button data-topic="water">Water & climate <span>02</span></button><button data-topic="open">Open government <span>03</span></button></div><label for="capture">Dated capture</label><select id="capture"></select><p class="help" id="history-note">The first capture establishes a baseline. Future weekly captures make comparison possible.</p></div>
+      <form id="search-form" hidden><p class="section-label">SEARCH THE LIVE INDEX</p><label for="search-mode">Search by</label><select id="search-mode"><option value="topic">Topic or keywords</option><option value="title">Article title</option><option value="author">Author</option><option value="doi">DOI</option></select><label for="search-query">Your search</label><input id="search-query" placeholder="e.g. Canada wildfire smoke" maxlength="300" required><div class="date-fields"><div><label for="from">Published from</label><input id="from" type="date"></div><div><label for="until">Published until</label><input id="until" type="date"></div></div><button class="primary" id="search-submit">Search Crossref ↗</button><p class="help">Search terms go directly to Crossref when you submit. Up to 40 ranked results; not a systematic review.</p></form>
+      <div class="side-note"><span class="tiny-rule"></span><h3>Start with a question.</h3><p>Who published it? Who funded it? Has the record changed? A citation is a starting point for checking the original work.</p></div>
+    </aside>
+    <section class="results-area" aria-label="Research records"><div class="results-heading"><div><p class="section-label" id="view-label">CURATED SEARCH SAMPLE</p><h2 id="view-title">A Canadian reading room</h2></div><button id="export-csv" class="quiet">Export CSV ↓</button></div>
+      <p id="status" class="status" role="status" aria-live="polite">Loading saved research records…</p>
+      <div class="filter-row"><label class="filter-search"><span class="sr-only">Filter these results</span><input id="filter" type="search" placeholder="Filter title, author, funder or DOI…"></label><label><span class="sr-only">Sort results</span><select id="sort"><option value="newest">Newest publication</option><option value="citations">Most cited in Crossref</option><option value="title">Title A–Z</option></select></label></div>
+      <details class="timeline" open><summary>Publication timeline <span>These results only</span></summary><div id="timeline" aria-label="Records by publication year"></div></details>
+      <div class="record-layout"><div id="results" class="record-list"></div><aside id="detail" class="detail" aria-label="Selected research record"><p>Select a record to inspect its evidence.</p></aside></div>
     </section>
-    <aside aria-label="Privacy"><strong>Stays on your device.</strong> The browser processes your text in this tab. Reloading clears it.</aside>
-  </main>
-  <footer>Part of <a href="https://coolcode.ca/">the CoolCode collection</a>. {{ISSUE_LINK}}</footer>
-</body>
-</html>
+  </div>
+  <section class="method" id="method"><div><p class="section-label">READ THE FINE PRINT</p><h2>Metadata is a trail.<br>Follow it to the source.</h2></div><div><h3>What is in the ledger?</h3><p>The saved collection keeps the top 25 Crossref journal-article matches for each of three Canadian topic queries. Results can include tangential matches or work from outside Canada. This is a discovery sample, not a census of Canadian research.</p><h3>What do the numbers mean?</h3><p>Publication bars count this view only. Cited-by counts reflect references registered with Crossref and are incomplete; they are not quality scores. Funding and update links appear only when supplied. Missing metadata does not establish that a work has no funding, corrections or retractions.</p><h3>What is retained?</h3><p>Weekly captures preserve selected bibliographic fields, counts and links. The app retains 16 captures; older versions remain in repository history. Differences reflect provider metadata or search ranking changes, not necessarily changes to a paper. Your live queries stay in tab memory and are not added to the public collection.</p><p>This tool provides metadata, not article full text or an assessment of a study's findings. Follow the DOI and publisher to read the work and check its current status. Publication, deposit, index and capture dates describe different events.</p><a href="https://www.crossref.org/documentation/retrieve-metadata/rest-api/" target="_blank" rel="noopener noreferrer">Crossref REST API documentation ↗</a></div></section>
+</main>
+<footer><a href="https://coolcode.ca/">CoolCode.ca</a><span>{{TITLE}} · {{TOOL_ID}}</span><div><a href="{{SOURCE_URL}}">Source & collection history</a>{{ISSUE_LINK}}</div></footer>
+<noscript><p class="noscript">Enable JavaScript to search and explore records. The <a href="./data/ledger.json">saved Crossref collection is available as JSON</a>.</p></noscript>
+</body></html>
