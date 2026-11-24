@@ -50,3 +50,11 @@ python3 scripts/build.py
 CI also installs `tests/browser-requirements.txt` and runs `tests/browser_smoke.py` against the built project subpath. It checks saved-data browsing, filtering, exports, a mocked live search, safe rendering and mobile overflow. Builds output `dist/` (not committed). Keep all asset paths relative for GitHub Pages project hosting.
 
 `tool.json` is the CoolCode catalogue record. No CNAME is used; the parent catalogue owns `coolcode.ca`.
+
+<!-- schedule-reliability -->
+## Schedule reliability
+
+Public GitHub repositories can have scheduled workflows disabled after 60 days of inactivity. A separate weekly [schedule guard](.github/workflows/schedule-guard.yml) calls GitHub's enable-workflow API for an explicit list of refresh workflows and itself. It can restore workflows disabled for inactivity, preserves manually disabled workflows, and runs independently of collection failures.
+
+This is an interim mitigation, not a scheduling guarantee: GitHub does not document active-workflow renewal as a permanent exemption, and scheduled runs can be delayed or dropped. A scheduler on our own Linux server is the planned independent trigger. The guard does not collect data, create dummy commits, or change source/check timestamps; successful collection and published data freshness still need monitoring.
+<!-- /schedule-reliability -->
