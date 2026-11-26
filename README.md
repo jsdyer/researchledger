@@ -4,6 +4,7 @@ A public browser application at **https://coolcode.ca/researchledger/** for find
 
 <!-- coolcode:guide -->
 Start with the saved wildfire, water or open-government collection, then inspect a paper's authors, funding and recorded update links. Search Crossref by topic, title, author or DOI for other work; export a CSV or save a timestamped receipt. Missing funding or correction metadata means unknown, and citation counts are incomplete—not a measure of quality.
+Filter by recorded author affiliation for Dalhousie, Saint Mary’s Halifax, UBC or SFU; keep private saved searches and subscribe to the institution’s weekly sample RSS. Missing affiliation metadata remains unknown.
 <!-- /coolcode:guide -->
 
 ## What works
@@ -58,3 +59,15 @@ Public GitHub repositories can have scheduled workflows disabled after 60 days o
 
 This is an interim mitigation, not a scheduling guarantee: GitHub does not document active-workflow renewal as a permanent exemption, and scheduled runs can be delayed or dropped. A scheduler on our own Linux server is the planned independent trigger. The guard does not collect data, create dummy commits, or change source/check timestamps; successful collection and published data freshness still need monitoring.
 <!-- /schedule-reliability -->
+
+## Institution discovery and saved searches
+
+`web/config.json` defines expandable institutions, full-name queries and affiliation aliases. The collector requests up to 100 recent Crossref matches per institution using `query.affiliation`, then only retains records with a matching supplied author affiliation. Saint Mary's also requires Halifax/Nova Scotia/Canada context to distinguish similarly named universities. This is incomplete discovery, not an institution publication census; no institutional association is inferred from title keywords.
+
+The institution filter acts on recorded affiliations in the selected capture or live result set. It sends `query.affiliation` alongside a new live topic/title/author request. DOI lookup remains a direct identifier lookup. Saved searches are opt-in in `coolcode:researchledger:searches:v1`, removable individually and exportable as JSON. Restoring a saved search does not automatically query Crossref.
+
+Weekly feeds at `feeds/dal.xml`, `feeds/smu.xml`, `feeds/ubc.xml` and `feeds/sfu.xml` contain the latest recorded institutional sample with stable DOI GUIDs. They can be added to Feed Harbour. Capture timestamps are feed build dates, not invented publication dates. Personal searches never become public feeds.
+
+To expand, append an institution with a unique ID, label, full `query`, lowercase `aliases`, and optional required geographic `context`. Run the existing workflow with `refresh=true`. The first deployment of this upgrade collects institution coverage automatically; later source pushes retain the offline build. Schedule and guard remain unchanged (`43 5 * * 1` UTC). No additional key is needed.
+
+Institution collection requests a bounded relevance-ranked sample from the current and previous four calendar years, then verifies the supplied affiliation. It is not an exhaustive list of the latest papers. Missing affiliation metadata is excluded rather than inferred.

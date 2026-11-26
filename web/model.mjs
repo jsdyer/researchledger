@@ -1,5 +1,5 @@
 export const CONTACT = 'jeffdyer@gmail.com';
-export function text(value) { return String(value ?? '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim(); }
+export function text(value) { return String(value ?? '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#(x[0-9a-f]+|[0-9]+);/gi,(_,v)=>{const n=v[0].toLowerCase()==='x'?parseInt(v.slice(1),16):Number(v);return n>0&&n<=0x10ffff?String.fromCodePoint(n):'';}).trim(); }
 export function doi(value) {
   const cleaned = String(value ?? '').trim().replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, '').replace(/^doi:\s*/i, '').toLowerCase();
   return /^10\.\d{4,9}\/\S+$/.test(cleaned) ? cleaned : '';
@@ -20,16 +20,17 @@ export function normalize(raw, topics = []) {
     citations: Number.isInteger(raw['is-referenced-by-count']) ? raw['is-referenced-by-count'] : null,
     funders: (raw.funder || []).map(f => ({name: text(f.name), awards: (f.award || []).map(text), doi: doi(f.DOI)})),
     deposited: raw.deposited?.['date-time'] || dateParts(raw.deposited), indexed: raw.indexed?.['date-time'] || dateParts(raw.indexed),
+    affiliations: [...new Set((raw.author||[]).flatMap(a=>(a.affiliation||[]).map(x=>text([x.name,...(x.place||[])].filter(Boolean).join(' ')))).filter(Boolean))],
     relations, updates, topics, raw
   };
 }
-export function filterRecords(records, {query = '', topic = '', type = '', from = '', until = '', sort = 'newest'} = {}) {
+export function filterRecords(records, {query = '', topic = '', type = '', from = '', until = '', sort = 'newest', institution = null} = {}) {
   const q = query.toLocaleLowerCase();
   const matching = records.filter(r => (!q || [r.title, r.id, r.publisher, r.journal, ...r.authors, ...r.funders.map(f => f.name)].join(' ').toLocaleLowerCase().includes(q)) &&
-    (!topic || r.topics.includes(topic)) && (!type || r.type === type) && (!from || (r.published && r.published >= from)) && (!until || (r.published && r.published <= until + '-99')));
+    (!institution || institutionMatch(r,institution)) && (!topic || r.topics.includes(topic)) && (!type || r.type === type) && (!from || (r.published && r.published >= from)) && (!until || (r.published && r.published <= until + '-99')));
   return matching.sort((a, b) => sort === 'citations' ? (b.citations ?? -1) - (a.citations ?? -1) || a.title.localeCompare(b.title) : sort === 'title' ? a.title.localeCompare(b.title) : b.published.localeCompare(a.published) || a.title.localeCompare(b.title));
 }
-export function searchURL({query, mode = 'topic', from = '', until = ''}) {
+export function searchURL({query, mode = 'topic', from = '', until = '', affiliation = ''}) {
   if (!query.trim()) throw new Error('Enter a topic, author, title or DOI.');
   if (query.length > 300) throw new Error('Keep your search below 300 characters.');
   if (mode !== 'doi' && from && until && from > until) throw new Error('The start date must be before the end date.');
@@ -40,6 +41,7 @@ export function searchURL({query, mode = 'topic', from = '', until = ''}) {
   } else {
     url.searchParams.set(mode === 'author' ? 'query.author' : mode === 'title' ? 'query.title' : 'query', query.trim());
     url.searchParams.set('rows', '40');
+    if (affiliation) url.searchParams.set('query.affiliation',affiliation);
     const filters = [from && `from-pub-date:${from}`, until && `until-pub-date:${until}`].filter(Boolean);
     if (filters.length) url.searchParams.set('filter', filters.join(','));
   }
@@ -66,3 +68,6 @@ export function histogram(records) {
   for (const r of records) if (r.published) { const year = r.published.slice(0, 4); counts.set(year, (counts.get(year) || 0) + 1); }
   return [...counts].sort(([a], [b]) => a.localeCompare(b));
 }
+
+export function institutionMatch(record,institution){return (record.affiliations||[]).some(value=>{const text=value.toLocaleLowerCase().replaceAll('’',"'");return institution.aliases.some(alias=>text.includes(alias))&&(!institution.context||institution.context.some(word=>text.includes(word)));});}
+export function validateSavedSearches(raw){if(!Array.isArray(raw))return [];return raw.slice(0,40).filter(x=>x&&typeof x.query==='string'&&x.query.trim()&&x.query.length<=300&&['topic','title','author','doi'].includes(x.mode)&&typeof x.from==='string'&&typeof x.until==='string').map(x=>({query:x.query,mode:x.mode,from:x.from.slice(0,10),until:x.until.slice(0,10),institution:typeof x.institution==='string'?x.institution.slice(0,30):''}));}

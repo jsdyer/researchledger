@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build a browser tool using Python's standard library; no network required."""
 from html import escape
+from rss import generate as generate_rss
 import json
 from pathlib import Path
 import re
@@ -75,6 +76,7 @@ def build(root=ROOT):
             raise ValueError("Unresolved template placeholder in web/index.html")
         index.write_text(page, encoding="utf-8")
         (stage / ".nojekyll").touch()
+        generate_rss(root,stage)
         if output.exists():
             shutil.rmtree(output)
         shutil.copytree(stage, output)

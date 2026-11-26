@@ -35,7 +35,8 @@ jobs:
         with:
           node-version: '24'
       - name: Capture the Crossref sample
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.refresh == true)
+        id: collect
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.refresh == true || hashFiles('web/data/institution-coverage.json') == '')
         run: python3 scripts/collect.py
       - name: Test the application
         run: node --test tests/*.test.mjs
@@ -62,11 +63,11 @@ jobs:
       - name: Check application in a browser
         run: python3 tests/browser_smoke.py
       - name: Retain validated data capture
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.refresh == true)
+        if: github.ref == 'refs/heads/main' && steps.collect.outcome == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add web/data/ledger.json
+          git add web/data/ledger.json web/data/institution-coverage.json
           if ! git diff --cached --quiet; then
             git commit -m "data: retain weekly Crossref research capture"
             git push origin HEAD:main

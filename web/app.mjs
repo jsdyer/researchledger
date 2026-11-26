@@ -1,6 +1,7 @@
-import {normalize, filterRecords, searchURL, citation, csv, compareRecord, histogram} from './model.mjs';
+import {normalize, filterRecords, searchURL, citation, csv, compareRecord, histogram, validateSavedSearches} from './model.mjs';
 const $ = id => document.getElementById(id);
 const state = {ledger: null, mode: 'saved', capture: 0, topic: '', records: [], visible: [], selected: '', liveAt: '', liveURL: '', busy: false};
+let config={institutions:[],maxSavedSearches:40};let savedSearches=[];const savedKey='coolcode:researchledger:searches:v1';
 const cache = new Map(); // Tab memory only; no persistent queries or visitor identifiers.
 let nextRequestAt = 0;
 let viewGeneration = 0;
@@ -28,7 +29,7 @@ function setMode(mode) {
   else { state.records = []; render(); status('Enter a search to retrieve up to 40 live matches from Crossref.'); $('search-query').focus(); }
 }
 function render() {
-  state.visible = filterRecords(state.records, {query:$('filter').value, topic:state.mode === 'saved' ? state.topic : '', sort:$('sort').value});
+  state.visible = filterRecords(state.records, {query:$('filter').value, topic:state.mode === 'saved' ? state.topic : '', sort:$('sort').value,institution:config.institutions.find(i=>i.id===$('institution').value)});
   $('record-count').textContent = state.visible.length;
   $('funding-count').textContent = state.visible.filter(r => r.funders.length).length;
   $('view-label').textContent = state.mode === 'saved' ? 'CURATED SEARCH SAMPLE' : 'LIVE CROSSREF RESULTS';
@@ -72,6 +73,7 @@ function renderDetail(record) {
   const metadata = el('dl', undefined, 'metadata');
   for (const [name, value] of [['Published',record.published || 'Not supplied'],['Cited-by in Crossref',record.citations === null ? 'Not supplied' : record.citations.toLocaleString()],['Journal / series',record.journal || 'Not supplied'],['Publisher',record.publisher || 'Not supplied']]) { const entry = el('div'); entry.append(el('dt',name),el('dd',value)); metadata.append(entry); }
   detail.append(metadata);
+  detail.append(section('Recorded author affiliations',[el('p',record.affiliations.join('; ')||'No affiliations supplied in this record.')]));
   const funders = el('ul'); for (const f of record.funders) funders.append(el('li', f.name + (f.awards.length ? ` · Award ${f.awards.join(', ')}` : '')));
   detail.append(section('Funding in this record', record.funders.length ? [funders] : [el('p','No funding metadata was supplied in this record. This does not establish that the work was unfunded.')]));
   const updates = [...record.updates, ...record.relations];
@@ -86,7 +88,7 @@ function renderDetail(record) {
 function download(filename, contents, type) { const url = URL.createObjectURL(new Blob([contents],{type})); const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click(); setTimeout(() => URL.revokeObjectURL(url),1000); status('Download prepared. The receipt includes the original capture time and source.'); }
 async function liveSearch(event) {
   event.preventDefault(); if (state.busy) return;
-  let url; try { url = searchURL({query:$('search-query').value,mode:$('search-mode').value,from:$('from').value,until:$('until').value}); } catch (error) { status(error.message,true); return; }
+  let url; try { url = searchURL({query:$('search-query').value,mode:$('search-mode').value,from:$('from').value,until:$('until').value,affiliation:config.institutions.find(i=>i.id===$('institution').value)?.query||''}); } catch (error) { status(error.message,true); return; }
   const previous = cache.get(url);
   if (previous && Date.now() - previous.time < 15 * 60 * 1000) { applyLive(previous.payload, url, previous.at); status(`${state.records.length} results · reused this tab's 15-minute cache · captured ${datetime(previous.at)}.`); return; }
   if (Date.now() < nextRequestAt) { status(`Please wait ${Math.ceil((nextRequestAt-Date.now())/1000)} seconds before another provider request.`,true); return; }
@@ -118,6 +120,12 @@ function applyLive(payload,url,at) {
   const records = raw.map(r => normalize(r));
   state.records = records; state.liveURL = url; state.liveAt = at; state.selected = ''; $('filter').value = ''; render();
 }
+function renderSavedSearches(){const box=$('saved-searches');box.replaceChildren();savedSearches.forEach((query,index)=>{const row=el('div');const b=el('button',query.query);b.type='button';b.addEventListener('click',()=>{setMode('live');$('search-query').value=query.query;$('search-mode').value=query.mode;$('search-mode').dispatchEvent(new Event('change'));$('from').value=query.from;$('until').value=query.until;$('institution').value=query.institution;updateInstitution();status('Saved search restored. Select Search Crossref to request current results.');});const remove=el('button','Remove');remove.type='button';remove.setAttribute('aria-label','Remove saved search '+query.query);remove.addEventListener('click',()=>{savedSearches.splice(index,1);persistSearches();});row.append(b,remove);box.append(row);});}
+function persistSearches(){try{localStorage.setItem(savedKey,JSON.stringify(savedSearches));}catch{status('Browser storage unavailable. Export searches to keep them.',true);}renderSavedSearches();}
+function updateInstitution(){const item=config.institutions.find(i=>i.id===$('institution').value);$('institution-feed').replaceChildren();if(item)$('institution-feed').append(link(item.label+' RSS',`./feeds/${item.id}.xml`));render();}
+$('institution').addEventListener('change',updateInstitution);
+$('save-search').addEventListener('click',()=>{const query={query:$('search-query').value.trim(),mode:$('search-mode').value,from:$('from').value,until:$('until').value,institution:$('institution').value};try{searchURL(query);if(savedSearches.length>=config.maxSavedSearches)throw Error('Export or remove a saved search before adding another.');if(!savedSearches.some(x=>JSON.stringify(x)===JSON.stringify(query)))savedSearches.push(query);persistSearches();status('Search saved in this browser.');}catch(e){status(e.message,true);}});
+$('export-searches').addEventListener('click',()=>download('research-searches.json',JSON.stringify({schema:'researchledger/searches/v1',searches:savedSearches},null,2),'application/json'));
 $('saved-mode').addEventListener('click', () => setMode('saved'));
 $('live-mode').addEventListener('click', () => setMode('live'));
 $('capture').addEventListener('change', () => { state.capture = Number($('capture').value); setSaved(); });
@@ -127,6 +135,7 @@ $('search-form').addEventListener('submit',liveSearch);
 $('search-mode').addEventListener('change',() => { const disabled = $('search-mode').value === 'doi'; $('from').disabled = disabled; $('until').disabled = disabled; });
 $('export-csv').addEventListener('click',() => download('research-ledger.csv',csv(state.visible),'text/csv;charset=utf-8'));
 try {
+  const configResponse=await fetch('./config.json');if(!configResponse.ok)throw Error('Configuration unavailable');config=await configResponse.json();for(const i of config.institutions){const o=el('option',i.label);o.value=i.id;$('institution').append(o);}try{savedSearches=validateSavedSearches(JSON.parse(localStorage.getItem(savedKey)));}catch{}renderSavedSearches();
   const response = await fetch('./data/ledger.json'); if (!response.ok) throw new Error('Saved collection unavailable');
   state.ledger = await response.json(); if (!state.ledger.captures?.length) throw new Error('No captures');
   $('capture-count').textContent = state.ledger.captures.length;

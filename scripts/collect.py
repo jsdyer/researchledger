@@ -56,6 +56,14 @@ def fetch(url):
     raise RuntimeError("Crossref unavailable")
 
 
+def affiliations(item):
+    return [clean(' '.join([str(a.get('name','')),*a.get('place',[])])).lower().replace('’',"'") for author in item.get('author',[]) for a in author.get('affiliation',[]) if isinstance(a,dict)]
+
+
+def matches_institution(item,institution):
+    return any(any(alias in value for alias in institution['aliases']) and (not institution.get('context') or any(context in value for context in institution['context'])) for value in affiliations(item))
+
+
 def collect(fetcher=fetch, existing=None):
     records, sources = {}, []
     for topic in TOPICS:
@@ -70,6 +78,17 @@ def collect(fetcher=fetch, existing=None):
             entry["topics"].append(topic["id"])
         if fetcher is fetch:
             time.sleep(1)
+    config=json.loads((ROOT/'web/config.json').read_text())
+    for institution in config['institutions']:
+        url='https://api.crossref.org/works?'+urlencode({'query.affiliation':institution['query'],'filter':f'type:journal-article,from-pub-date:{datetime.now(timezone.utc).year-4}-01-01,until-pub-date:{datetime.now(timezone.utc).date().isoformat()}','sort':'relevance','rows':config['institutionRows'],'mailto':CONTACT})
+        message=fetcher(url)
+        accepted=[item for item in message['items'] if matches_institution(item,institution)]
+        sources.append({'id':'institution-'+institution['id'],'label':institution['label'],'query':institution['query'],'url':url,'totalResults':message.get('total-results'),'returned':len(message['items']),'affiliationMatches':len(accepted),'limitation':'Relevance-ranked sample from the current and previous four calendar years. Requires a supplied author affiliation; not a complete or exhaustive latest-publication list.'})
+        for item in accepted:
+            normalized=normalize(item)
+            entry=records.setdefault(normalized['DOI'],{'work':normalized,'topics':[]})
+            if 'institution-'+institution['id'] not in entry['topics']:entry['topics'].append('institution-'+institution['id'])
+        if fetcher is fetch:time.sleep(1.5)
     now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     capture = {"id": now.replace(":", "-"), "capturedAt": now, "sources": sources, "records": list(records.values())}
     old = (existing or {}).get("captures", [])
@@ -85,6 +104,7 @@ def main():
     staging = target.with_suffix(".tmp")
     staging.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     staging.replace(target)
+    (ROOT/"web/data/institution-coverage.json").write_text(json.dumps({"schemaVersion":1,"checkedAt":result["captures"][0]["capturedAt"],"institutions":json.loads((ROOT/"web/config.json").read_text())["institutions"]})+"\n")
     print(f"Captured {len(result['captures'][0]['records'])} real Crossref records at {result['captures'][0]['capturedAt']}")
 
 
